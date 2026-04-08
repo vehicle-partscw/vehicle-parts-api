@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- WebApi layer: composition root. References Application + Infrastructure. -->
+  <ItemGroup>
+    <ProjectReference Include="..\AutoParts.Application\AutoParts.Application.csproj" />
+    <ProjectReference Include="..\AutoParts.Infrastructure\AutoParts.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
