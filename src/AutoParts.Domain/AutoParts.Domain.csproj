@@ -1,0 +1,3 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Domain layer: No dependencies. Pure C# only. -->
+</Project>

@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Application layer: depends only on Domain. -->
+  <ItemGroup>
+    <ProjectReference Include="..\AutoParts.Domain\AutoParts.Domain.csproj" />
+  </ItemGroup>
+
+</Project>
