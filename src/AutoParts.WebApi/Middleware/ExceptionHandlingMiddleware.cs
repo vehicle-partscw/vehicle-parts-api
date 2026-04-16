@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AutoParts.Application.Common.Exceptions;
+using AutoParts.Domain.Common;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AutoParts.WebApi.Middleware;
@@ -36,7 +37,7 @@ public class ExceptionHandlingMiddleware
             ValidationException validationEx => new ProblemDetails
             {
                 Status = StatusCodes.Status400BadRequest,
-                Title = "Validation Error",
+                Title = "Validation failed",
                 Detail = "One or more validation errors occurred.",
                 Extensions =
                 {
@@ -44,23 +45,52 @@ public class ExceptionHandlingMiddleware
                     ["errors"] = validationEx.Errors
                 }
             },
+            NotFoundException notFoundEx => new ProblemDetails
+            {
+                Status = StatusCodes.Status404NotFound,
+                Title = "Resource not found",
+                Detail = notFoundEx.Message,
+                Extensions = { ["traceId"] = traceId }
+            },
+            ForbiddenException forbiddenEx => new ProblemDetails
+            {
+                Status = StatusCodes.Status403Forbidden,
+                Title = "Forbidden",
+                Detail = forbiddenEx.Message,
+                Extensions = { ["traceId"] = traceId }
+            },
+            DomainException domainEx => new ProblemDetails
+            {
+                Status = StatusCodes.Status422UnprocessableEntity,
+                Title = "Business rule violation",
+                Detail = domainEx.Message,
+                Extensions = { ["traceId"] = traceId }
+            },
+            UnauthorizedAccessException => new ProblemDetails
+            {
+                Status = StatusCodes.Status401Unauthorized,
+                Title = "Unauthorized",
+                Detail = "Authentication is required.",
+                Extensions = { ["traceId"] = traceId }
+            },
             _ => new ProblemDetails
             {
                 Status = StatusCodes.Status500InternalServerError,
-                Title = "Internal Server Error",
+                Title = "Internal server error",
                 Detail = "An unexpected error occurred.",
                 Extensions = { ["traceId"] = traceId }
             }
         };
 
-        if (problemDetails.Status == StatusCodes.Status500InternalServerError)
+        if (problemDetails.Status >= 500)
         {
-            _logger.LogError(exception, "Unhandled exception. TraceId: {TraceId}", traceId);
+            _logger.LogError(exception, "unhandled exception. traceId={TraceId} path={Path}",
+                traceId, context.Request.Path);
         }
         else
         {
-            _logger.LogWarning(exception, "Handled exception ({StatusCode}). TraceId: {TraceId}",
-                problemDetails.Status, traceId);
+            _logger.LogWarning("handled {Status} on {Path}. traceId={TraceId} message={Message}",
+                problemDetails.Status, context.Request.Path, traceId, exception.Message);
         }
 
         context.Response.StatusCode = problemDetails.Status ?? 500;

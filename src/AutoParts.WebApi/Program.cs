@@ -5,19 +5,24 @@ using AutoParts.Infrastructure.Persistence;
 using AutoParts.WebApi.Middleware;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ── Layer registrations ──
+builder.Host.UseSerilog((ctx, services, cfg) => cfg
+    .ReadFrom.Configuration(ctx.Configuration)
+    .ReadFrom.Services(services)
+    .Enrich.FromLogContext()
+    .Enrich.WithMachineName()
+    .Enrich.WithThreadId());
+
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
-// ── Web API services ──
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// ── CORS ──
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("WebFrontend", policy =>
@@ -32,10 +37,9 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// ── Middleware pipeline ──
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseSerilogRequestLogging();
 
-// Swagger always on for now (coursework project)
 app.UseSwagger();
 app.UseSwaggerUI(options =>
 {
@@ -48,11 +52,9 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
-// ── Health check endpoint ──
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }))
     .AllowAnonymous();
 
-// ── Auto-migrate and seed on startup ──
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -61,7 +63,6 @@ using (var scope = app.Services.CreateScope())
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
 
-    // Seed roles
     string[] roles = ["Admin", "Staff", "Customer"];
     foreach (var role in roles)
     {
@@ -71,7 +72,6 @@ using (var scope = app.Services.CreateScope())
         }
     }
 
-    // Seed default admin
     const string adminEmail = "admin@autoparts.com";
     if (await userManager.FindByEmailAsync(adminEmail) is null)
     {
@@ -92,4 +92,16 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-app.Run();
+try
+{
+    Log.Information("autoparts api starting up");
+    app.Run();
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "autoparts api failed to start");
+}
+finally
+{
+    Log.CloseAndFlush();
+}
