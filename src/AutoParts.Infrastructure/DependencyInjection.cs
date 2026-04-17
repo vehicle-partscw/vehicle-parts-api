@@ -1,7 +1,10 @@
 using AutoParts.Application.Common.Interfaces;
 using AutoParts.Infrastructure.Identity;
 using AutoParts.Infrastructure.Persistence;
+using AutoParts.Infrastructure.Persistence.Interceptors;
+using AutoParts.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -17,12 +20,22 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        services.AddHttpContextAccessor();
+        services.AddScoped<ICurrentUser, CurrentUserService>();
+        services.AddSingleton<IDateTime, SystemDateTime>();
+        services.AddScoped<AuditableEntityInterceptor>();
+
         // Database
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
-        services.AddDbContext<ApplicationDbContext>(options =>
-            options.UseNpgsql(connectionString));
+        services.AddDbContext<ApplicationDbContext>((sp, options) =>
+        {
+            options.UseNpgsql(connectionString);
+            options.AddInterceptors(sp.GetRequiredService<AuditableEntityInterceptor>());
+        });
+
+        services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<ApplicationDbContext>());
 
         // Identity
         services.AddIdentity<ApplicationUser, IdentityRole>(options =>

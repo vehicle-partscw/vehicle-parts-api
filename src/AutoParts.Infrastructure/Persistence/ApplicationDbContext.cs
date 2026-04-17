@@ -1,3 +1,4 @@
+using AutoParts.Application.Common.Interfaces;
 using AutoParts.Domain.Common;
 using AutoParts.Domain.Entities;
 using AutoParts.Infrastructure.Identity;
@@ -8,7 +9,7 @@ using System.Reflection;
 
 namespace AutoParts.Infrastructure.Persistence;
 
-public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
+public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplicationDbContext
 {
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
         : base(options)
@@ -17,6 +18,22 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 
     public DbSet<RefreshToken> RefreshTokens { get; set; } = null!;
     public DbSet<StaffProfile> StaffProfiles { get; set; } = null!;
+    public DbSet<Vendor> Vendors { get; set; } = null!;
+    public DbSet<PartCategory> PartCategories { get; set; } = null!;
+    public DbSet<Part> Parts { get; set; } = null!;
+    public DbSet<Vehicle> Vehicles { get; set; } = null!;
+    public DbSet<ServiceType> ServiceTypes { get; set; } = null!;
+    public DbSet<Appointment> Appointments { get; set; } = null!;
+    public DbSet<PurchaseInvoice> PurchaseInvoices { get; set; } = null!;
+    public DbSet<PurchaseInvoiceItem> PurchaseInvoiceItems { get; set; } = null!;
+    public DbSet<LoyaltyTier> LoyaltyTiers { get; set; } = null!;
+    public DbSet<SalesInvoice> SalesInvoices { get; set; } = null!;
+    public DbSet<SalesInvoiceItem> SalesInvoiceItems { get; set; } = null!;
+    public DbSet<Payment> Payments { get; set; } = null!;
+    public DbSet<PartRequest> PartRequests { get; set; } = null!;
+    public DbSet<Review> Reviews { get; set; } = null!;
+    public DbSet<Notification> Notifications { get; set; } = null!;
+    public DbSet<AiPrediction> AiPredictions { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
