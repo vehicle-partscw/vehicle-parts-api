@@ -312,4 +312,56 @@ public class IdentityService : IIdentityService
             return Convert.ToBase64String(hashedBytes);
         }
     }
+
+    public async Task<IReadOnlyList<CustomerDto>> GetAllCustomersAsync()
+    {
+        var customers = await _userManager.GetUsersInRoleAsync("Customer");
+        return customers.Select(u => new CustomerDto
+        {
+            UserId = u.Id,
+            FullName = u.FullName,
+            Email = u.Email ?? string.Empty,
+            Phone = u.PhoneNumber,
+            IsActive = u.IsActive,
+            CreditLimit = u.CreditLimit,
+            CreatedAt = u.CreatedAt
+        }).ToList().AsReadOnly();
+    }
+
+    public async Task<CustomerDto?> GetCustomerByIdAsync(string userId)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null) return null;
+        if (!await _userManager.IsInRoleAsync(user, "Customer")) return null;
+        return new CustomerDto
+        {
+            UserId = user.Id,
+            FullName = user.FullName,
+            Email = user.Email ?? string.Empty,
+            Phone = user.PhoneNumber,
+            IsActive = user.IsActive,
+            CreditLimit = user.CreditLimit,
+            CreatedAt = user.CreatedAt
+        };
+    }
+
+    public async Task<bool> ToggleCustomerActiveAsync(string userId)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null) return false;
+        if (!await _userManager.IsInRoleAsync(user, "Customer")) return false;
+        user.IsActive = !user.IsActive;
+        var result = await _userManager.UpdateAsync(user);
+        return result.Succeeded;
+    }
+
+    public async Task<bool> UpdateCustomerCreditLimitAsync(string userId, decimal? creditLimit)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null) return false;
+        if (!await _userManager.IsInRoleAsync(user, "Customer")) return false;
+        user.CreditLimit = creditLimit;
+        var result = await _userManager.UpdateAsync(user);
+        return result.Succeeded;
+    }
 }
