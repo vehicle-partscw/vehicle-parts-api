@@ -18,4 +18,11 @@ public interface IIdentityService
     Task<CustomerDto?> GetCustomerByIdAsync(string userId);
     Task<bool> ToggleCustomerActiveAsync(string userId);
     Task<bool> UpdateCustomerCreditLimitAsync(string userId, decimal? creditLimit);
+
+    // password reset
+    Task<UserLookup?> FindUserByEmailAsync(string email);
+    Task<(bool Succeeded, IEnumerable<string> Errors)> ResetPasswordAsync(string userId, string newPassword);
+    Task RevokeAllRefreshTokensAsync(string userId);
 }
+
+public record UserLookup(string UserId, string FullName, string Email);

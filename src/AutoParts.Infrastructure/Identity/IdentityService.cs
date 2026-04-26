@@ -364,4 +364,30 @@ public class IdentityService : IIdentityService
         var result = await _userManager.UpdateAsync(user);
         return result.Succeeded;
     }
+
+    public async Task<UserLookup?> FindUserByEmailAsync(string email)
+    {
+        var user = await _userManager.FindByEmailAsync(email);
+        if (user is null) return null;
+        return new UserLookup(user.Id, user.FullName, user.Email ?? string.Empty);
+    }
+
+    public async Task<(bool Succeeded, IEnumerable<string> Errors)> ResetPasswordAsync(string userId, string newPassword)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null) return (false, new[] { "User not found." });
+        var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+        var result = await _userManager.ResetPasswordAsync(user, token, newPassword);
+        return (result.Succeeded, result.Errors.Select(e => e.Description));
+    }
+
+    public async Task RevokeAllRefreshTokensAsync(string userId)
+    {
+        var now = DateTime.UtcNow;
+        var tokens = await _dbContext.RefreshTokens
+            .Where(t => t.UserId == userId && t.RevokedAt == null)
+            .ToListAsync();
+        foreach (var t in tokens) t.RevokedAt = now;
+        await _dbContext.SaveChangesAsync();
+    }
 }

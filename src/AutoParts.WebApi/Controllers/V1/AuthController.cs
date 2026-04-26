@@ -1,3 +1,4 @@
+using AutoParts.Application.Features.Auth;
 using AutoParts.Application.Features.Identity.Commands.Login;
 using AutoParts.Application.Features.Identity.Commands.Register;
 using AutoParts.Application.Features.Identity.Commands.RefreshToken;
@@ -90,5 +91,29 @@ public class AuthController : ControllerBase
             result.RefreshToken,
             result.ExpiresAt
         });
+    }
+
+    [HttpPost("forgot-password")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPassword.Command command)
+    {
+        await _mediator.Send(command);
+        return NoContent();
+    }
+
+    [HttpPost("verify-reset-code")]
+    [AllowAnonymous]
+    public async Task<IActionResult> VerifyResetCode([FromBody] VerifyResetCode.Command command)
+    {
+        var resetToken = await _mediator.Send(command);
+        return Ok(new { resetToken });
+    }
+
+    [HttpPost("reset-password")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordWithCode.Command command)
+    {
+        await _mediator.Send(command);
+        return NoContent();
     }
 }
