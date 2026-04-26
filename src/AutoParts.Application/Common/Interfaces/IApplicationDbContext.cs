@@ -6,6 +6,7 @@ namespace AutoParts.Application.Common.Interfaces;
 public interface IApplicationDbContext
 {
     DbSet<RefreshToken> RefreshTokens { get; }
+    DbSet<PasswordResetCode> PasswordResetCodes { get; }
     DbSet<StaffProfile> StaffProfiles { get; }
     DbSet<Vendor> Vendors { get; }
     DbSet<PartCategory> PartCategories { get; }

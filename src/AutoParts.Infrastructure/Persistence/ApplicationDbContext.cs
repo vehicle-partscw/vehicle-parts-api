@@ -17,6 +17,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     }
 
     public DbSet<RefreshToken> RefreshTokens { get; set; } = null!;
+    public DbSet<PasswordResetCode> PasswordResetCodes { get; set; } = null!;
     public DbSet<StaffProfile> StaffProfiles { get; set; } = null!;
     public DbSet<Vendor> Vendors { get; set; } = null!;
     public DbSet<PartCategory> PartCategories { get; set; } = null!;
