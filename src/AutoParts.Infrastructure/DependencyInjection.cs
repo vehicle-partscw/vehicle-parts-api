@@ -1,4 +1,5 @@
 using AutoParts.Application.Common.Interfaces;
+using AutoParts.Infrastructure.Email;
 using AutoParts.Infrastructure.Identity;
 using AutoParts.Infrastructure.Persistence;
 using AutoParts.Infrastructure.Persistence.Interceptors;
@@ -81,6 +82,10 @@ public static class DependencyInjection
         // Services
         services.AddScoped<JwtTokenGenerator>();
         services.AddScoped<IIdentityService, IdentityService>();
+
+        // smtp email sender (falls back to console logging when SmtpSettings:Host is blank)
+        services.Configure<SmtpSettings>(configuration.GetSection("SmtpSettings"));
+        services.AddScoped<IEmailSender, SmtpEmailSender>();
 
         return services;
     }
