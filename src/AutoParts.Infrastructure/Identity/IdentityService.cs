@@ -390,4 +390,39 @@ public class IdentityService : IIdentityService
         foreach (var t in tokens) t.RevokedAt = now;
         await _dbContext.SaveChangesAsync();
     }
+
+    public async Task<AuthResult> SignInWithExternalAsync(string email, string fullName, string provider)
+    {
+        var user = await _userManager.FindByEmailAsync(email);
+
+        // not registered yet -> auto-create as a Customer with a random secure password
+        if (user is null)
+        {
+            user = new ApplicationUser
+            {
+                UserName = email,
+                Email = email,
+                EmailConfirmed = true,
+                FullName = string.IsNullOrWhiteSpace(fullName) ? email.Split('@')[0] : fullName,
+                CreatedAt = DateTime.UtcNow,
+                IsActive = true,
+            };
+
+            var randomPassword = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)) + "Aa1!";
+            var result = await _userManager.CreateAsync(user, randomPassword);
+            if (!result.Succeeded)
+                return AuthResult.Failure(result.Errors.Select(e => e.Description).ToArray());
+
+            if (!await _roleManager.RoleExistsAsync("Customer"))
+                await _roleManager.CreateAsync(new IdentityRole("Customer"));
+            await _userManager.AddToRoleAsync(user, "Customer");
+        }
+
+        if (!user.IsActive)
+            return AuthResult.Failure("This account has been deactivated.");
+
+        var tokens = await GenerateTokensAsync(user);
+        var expiryMinutes = int.Parse(_configuration["JwtSettings:ExpiryMinutes"] ?? "60");
+        return AuthResult.Success(user.Id, tokens.AccessToken, tokens.RefreshToken, DateTime.UtcNow.AddMinutes(expiryMinutes));
+    }
 }

@@ -19,6 +19,9 @@ public interface IIdentityService
     Task<bool> ToggleCustomerActiveAsync(string userId);
     Task<bool> UpdateCustomerCreditLimitAsync(string userId, decimal? creditLimit);
 
+    // sign in with Google or another verified external provider
+    Task<AuthResult> SignInWithExternalAsync(string email, string fullName, string provider);
+
     // password reset
     Task<UserLookup?> FindUserByEmailAsync(string email);
     Task<(bool Succeeded, IEnumerable<string> Errors)> ResetPasswordAsync(string userId, string newPassword);

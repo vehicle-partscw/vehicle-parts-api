@@ -116,4 +116,19 @@ public class AuthController : ControllerBase
         await _mediator.Send(command);
         return NoContent();
     }
+
+    [HttpPost("google")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Google([FromBody] GoogleSignInCommand command)
+    {
+        var result = await _mediator.Send(command);
+        if (!result.Succeeded)
+            return Unauthorized(new { errors = result.Errors });
+        return Ok(new
+        {
+            result.AccessToken,
+            result.RefreshToken,
+            result.ExpiresAt
+        });
+    }
 }
