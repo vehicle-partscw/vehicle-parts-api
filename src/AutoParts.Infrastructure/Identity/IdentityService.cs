@@ -425,4 +425,76 @@ public class IdentityService : IIdentityService
         var expiryMinutes = int.Parse(_configuration["JwtSettings:ExpiryMinutes"] ?? "60");
         return AuthResult.Success(user.Id, tokens.AccessToken, tokens.RefreshToken, DateTime.UtcNow.AddMinutes(expiryMinutes));
     }
+
+    public async Task<CustomerDto?> GetMyProfileAsync(string userId)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null) return null;
+        return new CustomerDto
+        {
+            UserId = user.Id,
+            FullName = user.FullName,
+            Email = user.Email ?? string.Empty,
+            Phone = user.PhoneNumber,
+            IsActive = user.IsActive,
+            CreditLimit = user.CreditLimit,
+            CreatedAt = user.CreatedAt
+        };
+    }
+
+    public async Task<bool> UpdateMyProfileAsync(string userId, string fullName, string? phone)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null) return false;
+        user.FullName = fullName;
+        user.PhoneNumber = string.IsNullOrWhiteSpace(phone) ? null : phone.Trim();
+        var result = await _userManager.UpdateAsync(user);
+        return result.Succeeded;
+    }
+
+    public async Task<IReadOnlyDictionary<string, UserSummary>> GetUserSummariesAsync(IEnumerable<string> userIds)
+    {
+        var ids = userIds.Where(id => !string.IsNullOrEmpty(id)).Distinct().ToList();
+        if (ids.Count == 0) return new Dictionary<string, UserSummary>();
+
+        var summaries = await _userManager.Users
+            .Where(u => ids.Contains(u.Id))
+            .Select(u => new UserSummary
+            {
+                UserId = u.Id,
+                FullName = u.FullName,
+                Phone = u.PhoneNumber
+            })
+            .ToListAsync();
+
+        return summaries.ToDictionary(s => s.UserId);
+    }
+
+    public async Task<bool> CheckPasswordAsync(string userId, string password)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null) return false;
+        return await _userManager.CheckPasswordAsync(user, password);
+    }
+
+    public async Task<(bool Succeeded, IEnumerable<string> Errors)> ChangeEmailAsync(string userId, string newEmail)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null) return (false, new[] { "User not found." });
+
+        var existing = await _userManager.FindByEmailAsync(newEmail);
+        if (existing is not null && existing.Id != userId)
+            return (false, new[] { "That email is already in use by another account." });
+
+        var setEmail = await _userManager.SetEmailAsync(user, newEmail);
+        if (!setEmail.Succeeded) return (false, setEmail.Errors.Select(e => e.Description));
+
+        var setUserName = await _userManager.SetUserNameAsync(user, newEmail);
+        if (!setUserName.Succeeded) return (false, setUserName.Errors.Select(e => e.Description));
+
+        var token = await _userManager.GenerateChangeEmailTokenAsync(user, newEmail);
+        await _userManager.ChangeEmailAsync(user, newEmail, token);
+
+        return (true, Array.Empty<string>());
+    }
 }
