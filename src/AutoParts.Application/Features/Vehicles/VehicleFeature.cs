@@ -40,7 +40,8 @@ public static class CreateVehicle
     {
         public Validator()
         {
-            RuleFor(x => x.CustomerUserId).NotEmpty();
+            // CustomerUserId is filled in by the handler when the caller is a Customer
+            // (self-service vehicle add); for staff/admin the handler enforces presence.
             RuleFor(x => x.VehicleNumber).NotEmpty().MaximumLength(20);
             RuleFor(x => x.Make).NotEmpty().MaximumLength(40);
             RuleFor(x => x.Model).NotEmpty().MaximumLength(60);
@@ -53,16 +54,30 @@ public static class CreateVehicle
     public class Handler : IRequestHandler<Command, Guid>
     {
         private readonly IApplicationDbContext _db;
-        public Handler(IApplicationDbContext db) { _db = db; }
+        private readonly ICurrentUser _user;
+        public Handler(IApplicationDbContext db, ICurrentUser user) { _db = db; _user = user; }
         public async Task<Guid> Handle(Command request, CancellationToken ct)
         {
+            // a customer can only register a vehicle for themselves
+            var ownerId = request.CustomerUserId;
+            if (_user.IsInRole(Roles.Customer))
+            {
+                if (string.IsNullOrEmpty(_user.UserId))
+                    throw new ForbiddenException();
+                ownerId = _user.UserId;
+            }
+            else if (string.IsNullOrEmpty(ownerId))
+            {
+                throw new DomainException("CustomerUserId is required.");
+            }
+
             var num = request.VehicleNumber.Trim().ToUpperInvariant();
             if (await _db.Vehicles.AnyAsync(v => v.VehicleNumber == num, ct))
                 throw new DomainException($"Vehicle number '{num}' is already registered.");
 
             var vehicle = new Vehicle
             {
-                CustomerUserId = request.CustomerUserId,
+                CustomerUserId = ownerId,
                 VehicleNumber = num,
                 Make = request.Make.Trim(),
                 Model = request.Model.Trim(),
