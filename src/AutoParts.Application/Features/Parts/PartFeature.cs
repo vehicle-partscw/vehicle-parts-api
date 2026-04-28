@@ -65,7 +65,9 @@ public static class CreatePart
         public async Task<Guid> Handle(Command request, CancellationToken ct)
         {
             var sku = request.Sku.Trim().ToUpperInvariant();
-            if (await _db.Parts.AnyAsync(p => p.Sku == sku, ct))
+            // IgnoreQueryFilters so a soft-deleted part with this SKU is still considered taken
+            // (the unique index in Postgres covers all rows, deleted or not)
+            if (await _db.Parts.IgnoreQueryFilters().AnyAsync(p => p.Sku == sku, ct))
                 throw new DomainException($"SKU '{sku}' is already in use.");
 
             if (!await _db.PartCategories.AnyAsync(c => c.Id == request.CategoryId, ct))
@@ -86,8 +88,26 @@ public static class CreatePart
                 ImageUrl = request.ImageUrl
             };
             _db.Parts.Add(part);
-            await _db.SaveChangesAsync(ct);
+            try
+            {
+                await _db.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+            {
+                // Safety net: even if the pre-check missed it (race / case mismatch / new unique col)
+                // we translate Postgres unique-violation 23505 to a friendly domain error
+                throw new DomainException($"SKU '{sku}' is already in use.");
+            }
             return part.Id;
+        }
+
+        private static bool IsUniqueViolation(DbUpdateException ex)
+        {
+            // Avoid taking a Npgsql dependency in Application; PostgresException stores SqlState in Data
+            var inner = ex.InnerException;
+            if (inner is null) return false;
+            var state = inner.Data["SqlState"] as string;
+            return state == "23505";
         }
     }
 }

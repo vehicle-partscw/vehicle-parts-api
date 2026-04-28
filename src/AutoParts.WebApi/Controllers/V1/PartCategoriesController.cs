@@ -15,6 +15,7 @@ public class PartCategoriesController : ControllerBase
     public PartCategoriesController(IMediator mediator) { _mediator = mediator; }
 
     [HttpPost]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Staff}")]
     public async Task<IActionResult> Create([FromBody] CreatePartCategory.Command command)
     {
         var id = await _mediator.Send(command);
