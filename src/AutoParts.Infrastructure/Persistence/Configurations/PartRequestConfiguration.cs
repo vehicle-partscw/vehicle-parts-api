@@ -16,5 +16,10 @@ public class PartRequestConfiguration : IEntityTypeConfiguration<PartRequest>
         b.Property(p => p.Status).HasConversion<int>();
         b.Property(p => p.IsDeleted).HasDefaultValue(false);
         b.HasIndex(p => p.CustomerUserId);
+
+        b.HasOne(p => p.ResolvedPart)
+            .WithMany()
+            .HasForeignKey(p => p.ResolvedPartId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

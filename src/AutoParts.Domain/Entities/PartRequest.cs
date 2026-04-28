@@ -10,6 +10,8 @@ public class PartRequest : BaseAuditableEntity
     public PartRequestStatus Status { get; set; } = PartRequestStatus.Pending;
     public DateTime RequestedAt { get; set; }
     public DateTime? ResolvedAt { get; set; }
+    public Guid? ResolvedPartId { get; set; }   // populated when staff sources the request by adding a catalog entry
+    public Part? ResolvedPart { get; set; }
 }
 
 public enum PartRequestStatus
