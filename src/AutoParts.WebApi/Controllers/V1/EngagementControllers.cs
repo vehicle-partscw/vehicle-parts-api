@@ -25,9 +25,20 @@ public class PartRequestsController : ControllerBase
     public async Task<IActionResult> List([FromQuery] GetPartRequests.Query query) =>
         Ok(await _mediator.Send(query));
 
-    [HttpPatch("{id:guid}/status")]
+    /// <summary>Source a request: create a Part in the catalog and notify the customer.</summary>
+    [HttpPost("{id:guid}/source")]
     [Authorize(Roles = $"{Roles.Admin},{Roles.Staff}")]
-    public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdatePartRequestStatus.Command command)
+    public async Task<IActionResult> Source(Guid id, [FromBody] SourcePartRequest.Command command)
+    {
+        command.Id = id;
+        await _mediator.Send(command);
+        return NoContent();
+    }
+
+    /// <summary>Reject a request and notify the customer with an optional reason.</summary>
+    [HttpPost("{id:guid}/reject")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Staff}")]
+    public async Task<IActionResult> Reject(Guid id, [FromBody] RejectPartRequest.Command command)
     {
         command.Id = id;
         await _mediator.Send(command);
@@ -69,11 +80,22 @@ public class NotificationsController : ControllerBase
     public async Task<IActionResult> Mine([FromQuery] GetMyNotifications.Query query) =>
         Ok(await _mediator.Send(query));
 
+    [HttpGet("unread-count")]
+    public async Task<IActionResult> UnreadCount() =>
+        Ok(new { count = await _mediator.Send(new GetMyUnreadCount.Query()) });
+
     [HttpPatch("{id:guid}/read")]
     public async Task<IActionResult> MarkRead(Guid id)
     {
         await _mediator.Send(new MarkNotificationRead.Command { Id = id });
         return NoContent();
+    }
+
+    [HttpPatch("read-all")]
+    public async Task<IActionResult> MarkAllRead()
+    {
+        var count = await _mediator.Send(new MarkAllNotificationsRead.Command());
+        return Ok(new { marked = count });
     }
 }
 
