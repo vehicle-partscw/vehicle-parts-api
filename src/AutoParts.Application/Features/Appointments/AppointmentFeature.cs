@@ -15,6 +15,8 @@ public class AppointmentDto
 {
     public Guid Id { get; set; }
     public string CustomerUserId { get; set; } = string.Empty;
+    public string? CustomerName { get; set; }
+    public string? CustomerPhone { get; set; }
     public Guid VehicleId { get; set; }
     public string VehicleNumber { get; set; } = string.Empty;
     public Guid ServiceTypeId { get; set; }
@@ -24,6 +26,8 @@ public class AppointmentDto
     public string Status { get; set; } = string.Empty;
     public string? Notes { get; set; }
     public DateTime CreatedAt { get; set; }
+    public Guid? LinkedInvoiceId { get; set; }
+    public string? LinkedInvoiceNumber { get; set; }
 }
 
 public static class CreateAppointment
@@ -124,9 +128,15 @@ public static class GetAppointments
     {
         private readonly IApplicationDbContext _db;
         private readonly ICurrentUser _user;
-        public Handler(IApplicationDbContext db, ICurrentUser user) { _db = db; _user = user; }
+        private readonly IIdentityService _identity;
+        public Handler(IApplicationDbContext db, ICurrentUser user, IIdentityService identity)
+        {
+            _db = db;
+            _user = user;
+            _identity = identity;
+        }
 
-        public Task<PaginatedList<AppointmentDto>> Handle(Query req, CancellationToken ct)
+        public async Task<PaginatedList<AppointmentDto>> Handle(Query req, CancellationToken ct)
         {
             var q = _db.Appointments
                 .Include(a => a.Vehicle)
@@ -140,7 +150,7 @@ public static class GetAppointments
 
             if (req.Status.HasValue) q = q.Where(a => a.Status == req.Status.Value);
 
-            var dtos = q.OrderBy(a => a.ScheduledAt).Select(a => new AppointmentDto
+            var projected = q.OrderBy(a => a.ScheduledAt).Select(a => new AppointmentDto
             {
                 Id = a.Id,
                 CustomerUserId = a.CustomerUserId,
@@ -152,9 +162,35 @@ public static class GetAppointments
                 ScheduledAt = a.ScheduledAt,
                 Status = a.Status.ToString(),
                 Notes = a.Notes,
-                CreatedAt = a.CreatedAt
+                CreatedAt = a.CreatedAt,
+                // a Done appointment may have an invoice created from it later; expose it on the row
+                LinkedInvoiceId = _db.SalesInvoices
+                    .Where(s => s.RelatedAppointmentId == a.Id)
+                    .Select(s => (Guid?)s.Id)
+                    .FirstOrDefault(),
+                LinkedInvoiceNumber = _db.SalesInvoices
+                    .Where(s => s.RelatedAppointmentId == a.Id)
+                    .Select(s => s.InvoiceNumber)
+                    .FirstOrDefault()
             });
-            return PaginatedList<AppointmentDto>.CreateAsync(dtos, req.Page, req.PageSize, ct);
+
+            var page = await PaginatedList<AppointmentDto>.CreateAsync(projected, req.Page, req.PageSize, ct);
+
+            // staff/admin need to know which customer made the booking; join name + phone post-projection
+            if (!_user.IsInRole(Roles.Customer) && page.Items.Count > 0)
+            {
+                var summaries = await _identity.GetUserSummariesAsync(page.Items.Select(d => d.CustomerUserId));
+                foreach (var d in page.Items)
+                {
+                    if (summaries.TryGetValue(d.CustomerUserId, out var s))
+                    {
+                        d.CustomerName = s.FullName;
+                        d.CustomerPhone = s.Phone;
+                    }
+                }
+            }
+
+            return page;
         }
     }
 }
