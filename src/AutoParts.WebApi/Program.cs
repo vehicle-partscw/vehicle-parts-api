@@ -6,7 +6,11 @@ using AutoParts.Infrastructure.Persistence.Seeding;
 using AutoParts.WebApi.Middleware;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using QuestPDF.Infrastructure;
 using Serilog;
+
+// quest pdf community licence - free for student / non-commercial projects
+QuestPDF.Settings.License = LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 
