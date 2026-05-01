@@ -19,9 +19,6 @@ public interface IIdentityService
     Task<bool> ToggleCustomerActiveAsync(string userId);
     Task<bool> UpdateCustomerCreditLimitAsync(string userId, decimal? creditLimit);
 
-    // sign in with Google or another verified external provider
-    Task<AuthResult> SignInWithExternalAsync(string email, string fullName, string provider);
-
     // self-service profile (any role)
     Task<CustomerDto?> GetMyProfileAsync(string userId);
     Task<bool> UpdateMyProfileAsync(string userId, string fullName, string? phone);
@@ -29,14 +26,18 @@ public interface IIdentityService
     // batch lookup of name + phone for joining onto DTOs
     Task<IReadOnlyDictionary<string, UserSummary>> GetUserSummariesAsync(IEnumerable<string> userIds);
 
-    // password reset / email change
-    Task<bool> CheckPasswordAsync(string userId, string password);
-    Task<(bool Succeeded, IEnumerable<string> Errors)> ChangeEmailAsync(string userId, string newEmail);
+    // sign in with Google or another verified external provider - finds or auto-creates a Customer and issues tokens
+    Task<AuthResult> SignInWithExternalAsync(string email, string fullName, string provider);
 
-    // password reset
+    // password reset / email change support
     Task<UserLookup?> FindUserByEmailAsync(string email);
+    Task<bool> CheckPasswordAsync(string userId, string password);
     Task<(bool Succeeded, IEnumerable<string> Errors)> ResetPasswordAsync(string userId, string newPassword);
+    Task<(bool Succeeded, IEnumerable<string> Errors)> ChangeEmailAsync(string userId, string newEmail);
     Task RevokeAllRefreshTokensAsync(string userId);
+
+    // returns user ids of every active admin - used to fan-out in-app notifications like low-stock alerts
+    Task<IReadOnlyList<string>> GetAdminUserIdsAsync();
 }
 
 public record UserLookup(string UserId, string FullName, string Email);

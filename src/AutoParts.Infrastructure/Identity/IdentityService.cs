@@ -365,67 +365,6 @@ public class IdentityService : IIdentityService
         return result.Succeeded;
     }
 
-    public async Task<UserLookup?> FindUserByEmailAsync(string email)
-    {
-        var user = await _userManager.FindByEmailAsync(email);
-        if (user is null) return null;
-        return new UserLookup(user.Id, user.FullName, user.Email ?? string.Empty);
-    }
-
-    public async Task<(bool Succeeded, IEnumerable<string> Errors)> ResetPasswordAsync(string userId, string newPassword)
-    {
-        var user = await _userManager.FindByIdAsync(userId);
-        if (user is null) return (false, new[] { "User not found." });
-        var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-        var result = await _userManager.ResetPasswordAsync(user, token, newPassword);
-        return (result.Succeeded, result.Errors.Select(e => e.Description));
-    }
-
-    public async Task RevokeAllRefreshTokensAsync(string userId)
-    {
-        var now = DateTime.UtcNow;
-        var tokens = await _dbContext.RefreshTokens
-            .Where(t => t.UserId == userId && t.RevokedAt == null)
-            .ToListAsync();
-        foreach (var t in tokens) t.RevokedAt = now;
-        await _dbContext.SaveChangesAsync();
-    }
-
-    public async Task<AuthResult> SignInWithExternalAsync(string email, string fullName, string provider)
-    {
-        var user = await _userManager.FindByEmailAsync(email);
-
-        // not registered yet -> auto-create as a Customer with a random secure password
-        if (user is null)
-        {
-            user = new ApplicationUser
-            {
-                UserName = email,
-                Email = email,
-                EmailConfirmed = true,
-                FullName = string.IsNullOrWhiteSpace(fullName) ? email.Split('@')[0] : fullName,
-                CreatedAt = DateTime.UtcNow,
-                IsActive = true,
-            };
-
-            var randomPassword = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)) + "Aa1!";
-            var result = await _userManager.CreateAsync(user, randomPassword);
-            if (!result.Succeeded)
-                return AuthResult.Failure(result.Errors.Select(e => e.Description).ToArray());
-
-            if (!await _roleManager.RoleExistsAsync("Customer"))
-                await _roleManager.CreateAsync(new IdentityRole("Customer"));
-            await _userManager.AddToRoleAsync(user, "Customer");
-        }
-
-        if (!user.IsActive)
-            return AuthResult.Failure("This account has been deactivated.");
-
-        var tokens = await GenerateTokensAsync(user);
-        var expiryMinutes = int.Parse(_configuration["JwtSettings:ExpiryMinutes"] ?? "60");
-        return AuthResult.Success(user.Id, tokens.AccessToken, tokens.RefreshToken, DateTime.UtcNow.AddMinutes(expiryMinutes));
-    }
-
     public async Task<CustomerDto?> GetMyProfileAsync(string userId)
     {
         var user = await _userManager.FindByIdAsync(userId);
@@ -470,11 +409,27 @@ public class IdentityService : IIdentityService
         return summaries.ToDictionary(s => s.UserId);
     }
 
+    public async Task<UserLookup?> FindUserByEmailAsync(string email)
+    {
+        var user = await _userManager.FindByEmailAsync(email);
+        if (user is null) return null;
+        return new UserLookup(user.Id, user.FullName, user.Email ?? string.Empty);
+    }
+
     public async Task<bool> CheckPasswordAsync(string userId, string password)
     {
         var user = await _userManager.FindByIdAsync(userId);
         if (user is null) return false;
         return await _userManager.CheckPasswordAsync(user, password);
+    }
+
+    public async Task<(bool Succeeded, IEnumerable<string> Errors)> ResetPasswordAsync(string userId, string newPassword)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user is null) return (false, new[] { "User not found." });
+        var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+        var result = await _userManager.ResetPasswordAsync(user, token, newPassword);
+        return (result.Succeeded, result.Errors.Select(e => e.Description));
     }
 
     public async Task<(bool Succeeded, IEnumerable<string> Errors)> ChangeEmailAsync(string userId, string newEmail)
@@ -486,15 +441,73 @@ public class IdentityService : IIdentityService
         if (existing is not null && existing.Id != userId)
             return (false, new[] { "That email is already in use by another account." });
 
+        // change both Email + UserName so login keeps working
         var setEmail = await _userManager.SetEmailAsync(user, newEmail);
         if (!setEmail.Succeeded) return (false, setEmail.Errors.Select(e => e.Description));
 
         var setUserName = await _userManager.SetUserNameAsync(user, newEmail);
         if (!setUserName.Succeeded) return (false, setUserName.Errors.Select(e => e.Description));
 
+        // mark confirmed since admin/customer is doing this themselves while signed in
         var token = await _userManager.GenerateChangeEmailTokenAsync(user, newEmail);
         await _userManager.ChangeEmailAsync(user, newEmail, token);
 
         return (true, Array.Empty<string>());
+    }
+
+    public async Task RevokeAllRefreshTokensAsync(string userId)
+    {
+        var now = DateTime.UtcNow;
+        var tokens = await _dbContext.RefreshTokens
+            .Where(t => t.UserId == userId && t.RevokedAt == null)
+            .ToListAsync();
+        foreach (var t in tokens) t.RevokedAt = now;
+        await _dbContext.SaveChangesAsync();
+    }
+
+    public async Task<AuthResult> SignInWithExternalAsync(string email, string fullName, string provider)
+    {
+        var user = await _userManager.FindByEmailAsync(email);
+
+        // not registered yet → auto-create as a Customer with a random secure password
+        if (user is null)
+        {
+            user = new ApplicationUser
+            {
+                UserName = email,
+                Email = email,
+                EmailConfirmed = true,    // verified by Google
+                FullName = string.IsNullOrWhiteSpace(fullName) ? email.Split('@')[0] : fullName,
+                CreatedAt = DateTime.UtcNow,
+                IsActive = true,
+            };
+
+            // 32-byte random password - the user can sign in via Google forever and never need this,
+            // or they can use Forgot password to set one if they want a password too.
+            var randomPassword = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)) + "Aa1!";
+            var result = await _userManager.CreateAsync(user, randomPassword);
+            if (!result.Succeeded)
+                return AuthResult.Failure(result.Errors.Select(e => e.Description).ToArray());
+
+            if (!await _roleManager.RoleExistsAsync("Customer"))
+                await _roleManager.CreateAsync(new IdentityRole("Customer"));
+            await _userManager.AddToRoleAsync(user, "Customer");
+        }
+
+        if (!user.IsActive)
+            return AuthResult.Failure("This account has been deactivated.");
+
+        var tokens = await GenerateTokensAsync(user);
+        var expiryMinutes = int.Parse(_configuration["JwtSettings:ExpiryMinutes"] ?? "60");
+        return AuthResult.Success(user.Id, tokens.AccessToken, tokens.RefreshToken, DateTime.UtcNow.AddMinutes(expiryMinutes));
+    }
+
+    public async Task<IReadOnlyList<string>> GetAdminUserIdsAsync()
+    {
+        var admins = await _userManager.GetUsersInRoleAsync("Admin");
+        return admins
+            .Where(u => u.IsActive)
+            .Select(u => u.Id)
+            .ToList();
     }
 }
