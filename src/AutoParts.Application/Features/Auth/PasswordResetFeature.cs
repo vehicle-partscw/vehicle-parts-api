@@ -50,7 +50,7 @@ public static class ForgotPassword
 
         public async Task<Unit> Handle(Command req, CancellationToken ct)
         {
-            // Always return Unit.Value — never tell the caller whether the email exists.
+            // Always return Unit.Value - never tell the caller whether the email exists.
             var user = await _identity.FindUserByEmailAsync(req.Email.Trim());
             if (user is null) return Unit.Value;
 
@@ -85,11 +85,11 @@ public static class ForgotPassword
 
             try
             {
-                await _email.SendAsync(user.Email, user.FullName, subject, html, text, ct);
+                await _email.SendAsync(user.Email, user.FullName, subject, html, text, ct: ct);
             }
             catch
             {
-                // swallow — don't reveal delivery problems to the caller
+                // swallow - don't reveal delivery problems to the caller
             }
 
             return Unit.Value;
@@ -145,7 +145,8 @@ public static class VerifyResetCode
                 throw new DomainException("Invalid code.");
             }
 
-            // hand back the code row id as a short-lived reset token
+            // generate a short-lived reset token (we'll just hand back the code-row id; staying server-side avoids
+            // signing/key management). It's only valid until ConsumedAt is set in the next step.
             return entry.Id.ToString();
         }
     }

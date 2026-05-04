@@ -11,6 +11,7 @@
     <PackageReference Include="MediatR" Version="12.*" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.*" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="*" />
+    <PackageReference Include="QuestPDF" Version="2024.*" />
   </ItemGroup>
 
 </Project>

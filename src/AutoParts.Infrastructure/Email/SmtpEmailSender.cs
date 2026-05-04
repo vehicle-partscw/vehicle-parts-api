@@ -18,11 +18,18 @@ public class SmtpEmailSender : IEmailSender
         _log = log;
     }
 
-    public async Task SendAsync(string toEmail, string toName, string subject, string htmlBody, string textBody, CancellationToken ct = default)
+    public async Task SendAsync(
+        string toEmail,
+        string toName,
+        string subject,
+        string htmlBody,
+        string textBody,
+        IEnumerable<EmailAttachment>? attachments = null,
+        CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(_settings.Host))
         {
-            // dev fallback so the otp still shows up when smtp isn't configured
+            // dev fallback so the otp / invoice still shows up in console when smtp isn't configured
             _log.LogWarning(
                 "SMTP host not configured; logging email instead.\nTO: {To} <{Email}>\nSUBJECT: {Subject}\n\n{Body}",
                 toName, toEmail, subject, textBody);
@@ -39,6 +46,15 @@ public class SmtpEmailSender : IEmailSender
             HtmlBody = htmlBody,
             TextBody = textBody
         };
+
+        if (attachments is not null)
+        {
+            foreach (var a in attachments)
+            {
+                body.Attachments.Add(a.FileName, a.Content, ContentType.Parse(a.ContentType));
+            }
+        }
+
         msg.Body = body.ToMessageBody();
 
         using var client = new SmtpClient();
