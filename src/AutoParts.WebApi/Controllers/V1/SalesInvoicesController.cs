@@ -32,4 +32,20 @@ public class SalesInvoicesController : ControllerBase
         var dto = await _mediator.Send(new GetSalesInvoiceById.Query { Id = id });
         return dto is null ? NotFound() : Ok(dto);
     }
+
+    [HttpPost("{id:guid}/email")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Staff}")]
+    public async Task<IActionResult> Email(Guid id)
+    {
+        await _mediator.Send(new EmailInvoice.Command { Id = id });
+        return NoContent();
+    }
+
+    [HttpPost("scan-overdue")]
+    [Authorize(Roles = Roles.Admin)]
+    public async Task<IActionResult> ScanOverdue()
+    {
+        var result = await _mediator.Send(new ScanOverdueInvoices.Command());
+        return Ok(result);
+    }
 }

@@ -1,10 +1,10 @@
 using AutoParts.Application.Common.Interfaces;
 using AutoParts.Infrastructure.Email;
 using AutoParts.Infrastructure.Identity;
-using MediatR;
 using AutoParts.Infrastructure.Persistence;
 using AutoParts.Infrastructure.Persistence.Interceptors;
 using AutoParts.Infrastructure.Services;
+using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
@@ -84,15 +84,18 @@ public static class DependencyInjection
         services.AddScoped<JwtTokenGenerator>();
         services.AddScoped<IIdentityService, IdentityService>();
 
-        // mediatr handlers that live in infrastructure (e.g. google sign-in handler)
+        // MediatR handlers that live in Infrastructure (e.g. GoogleSignInCommandHandler depending on Google.Apis.Auth)
         services.AddMediatR(config =>
         {
             config.RegisterServicesFromAssembly(typeof(DependencyInjection).Assembly);
         });
 
-        // smtp email sender (falls back to console logging when SmtpSettings:Host is blank)
+        // SMTP email sender (falls back to console logging when SmtpSettings:Host is blank)
         services.Configure<SmtpSettings>(configuration.GetSection("SmtpSettings"));
         services.AddScoped<IEmailSender, SmtpEmailSender>();
+
+        // background service: scans every 24 hours for overdue On-Credit invoices and emails reminders
+        services.AddHostedService<Services.OverdueInvoiceReminderService>();
 
         return services;
     }
