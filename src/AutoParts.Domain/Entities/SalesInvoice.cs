@@ -21,6 +21,13 @@ public class SalesInvoice : BaseAuditableEntity
     public decimal AmountDue { get; set; }
     public PaymentStatus PaymentStatus { get; set; } = PaymentStatus.Unpaid;
 
+    // null until staff first emails the invoice to the customer; updated on every re-send
+    public DateTime? EmailSentAt { get; set; }
+
+    // null until the overdue-reminder scan first emails the customer about an unpaid OnCredit balance.
+    // updated on every reminder so we can rate-limit to one email per week per invoice.
+    public DateTime? LastOverdueReminderAt { get; set; }
+
     public LoyaltyTier? LoyaltyTier { get; set; }
     public List<SalesInvoiceItem> Items { get; set; } = new();
     public List<Payment> Payments { get; set; } = new();

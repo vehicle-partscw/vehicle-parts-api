@@ -19,5 +19,6 @@ public enum NotificationType
     OverdueCredit = 1,
     AppointmentReminder = 2,
     PartRequest = 3,
-    AiAlert = 4
+    AiAlert = 4,
+    InvoiceEmailed = 5
 }

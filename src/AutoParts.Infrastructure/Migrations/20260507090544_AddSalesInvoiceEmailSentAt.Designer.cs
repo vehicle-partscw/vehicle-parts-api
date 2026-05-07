@@ -3,6 +3,7 @@ using System;
 using AutoParts.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace AutoParts.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260507090544_AddSalesInvoiceEmailSentAt")]
+    partial class AddSalesInvoiceEmailSentAt
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -727,9 +730,6 @@ namespace AutoParts.Infrastructure.Migrations
 
                     b.Property<DateOnly>("IssueDate")
                         .HasColumnType("date");
-
-                    b.Property<DateTime?>("LastOverdueReminderAt")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid?>("LoyaltyTierId")
                         .HasColumnType("uuid");
