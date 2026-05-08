@@ -93,30 +93,7 @@ public class AuthController : ControllerBase
         });
     }
 
-    [HttpPost("forgot-password")]
-    [AllowAnonymous]
-    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPassword.Command command)
-    {
-        await _mediator.Send(command);
-        return NoContent();
-    }
-
-    [HttpPost("verify-reset-code")]
-    [AllowAnonymous]
-    public async Task<IActionResult> VerifyResetCode([FromBody] VerifyResetCode.Command command)
-    {
-        var resetToken = await _mediator.Send(command);
-        return Ok(new { resetToken });
-    }
-
-    [HttpPost("reset-password")]
-    [AllowAnonymous]
-    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordWithCode.Command command)
-    {
-        await _mediator.Send(command);
-        return NoContent();
-    }
-
+    /// <summary>Sign in (or auto-register) using a Google ID token from the frontend.</summary>
     [HttpPost("google")]
     [AllowAnonymous]
     public async Task<IActionResult> Google([FromBody] GoogleSignInCommand command)
@@ -130,5 +107,32 @@ public class AuthController : ControllerBase
             result.RefreshToken,
             result.ExpiresAt
         });
+    }
+
+    /// <summary>Send a 6-digit reset code to the user's email. Always returns 204 - never reveals whether the email exists.</summary>
+    [HttpPost("forgot-password")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ForgotPassword([FromBody] AutoParts.Application.Features.Auth.ForgotPassword.Command command)
+    {
+        await _mediator.Send(command);
+        return NoContent();
+    }
+
+    /// <summary>Verify the reset code. On success returns a short-lived reset token used in the next call.</summary>
+    [HttpPost("verify-reset-code")]
+    [AllowAnonymous]
+    public async Task<IActionResult> VerifyResetCode([FromBody] AutoParts.Application.Features.Auth.VerifyResetCode.Command command)
+    {
+        var resetToken = await _mediator.Send(command);
+        return Ok(new { resetToken });
+    }
+
+    /// <summary>Set a new password using the reset token from the previous step.</summary>
+    [HttpPost("reset-password")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ResetPassword([FromBody] AutoParts.Application.Features.Auth.ResetPasswordWithCode.Command command)
+    {
+        await _mediator.Send(command);
+        return NoContent();
     }
 }

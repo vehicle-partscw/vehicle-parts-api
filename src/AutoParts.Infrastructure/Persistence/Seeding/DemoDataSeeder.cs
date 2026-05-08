@@ -115,7 +115,7 @@ public static class DemoDataSeeder
 
         await db.SaveChangesAsync();
 
-        // sales invoices spread across past 12 months — some triggering loyalty discount
+        // sales invoices spread across past 12 months - some triggering loyalty discount
         var sInvCounter = 5001;
         for (int monthsAgo = 11; monthsAgo >= 0; monthsAgo--)
         {

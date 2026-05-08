@@ -23,12 +23,16 @@ public class MeController : ControllerBase
         await _mediator.Send(command);
         return NoContent();
     }
+
+    /// <summary>Change the signed-in user's email after re-confirming their current password.</summary>
     [HttpPut("email")]
     public async Task<IActionResult> ChangeEmail([FromBody] ChangeMyEmail.Command command)
     {
         await _mediator.Send(command);
         return NoContent();
     }
+
+    /// <summary>Change the signed-in user's password after re-confirming their current password.</summary>
     [HttpPut("password")]
     public async Task<IActionResult> ChangePassword([FromBody] ChangeMyPassword.Command command)
     {
