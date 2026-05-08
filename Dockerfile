@@ -33,5 +33,11 @@ COPY --from=build /app/publish .
 # Render injects PORT (default 10000); ASP.NET listens on whatever URLs we tell it
 ENV ASPNETCORE_URLS=http://+:8080
 ENV ASPNETCORE_ENVIRONMENT=Production
+
+# disable hot-reload of appsettings.json - we don't change config at runtime in prod
+# and the inotify watchers blow past render's per-container fd limit on cold start.
+ENV DOTNET_hostBuilder__reloadConfigOnChange=false
+ENV DOTNET_USE_POLLING_FILE_WATCHER=1
+
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "AutoParts.WebApi.dll"]
