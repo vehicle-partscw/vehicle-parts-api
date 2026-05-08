@@ -20,6 +20,14 @@ RUN dotnet publish src/AutoParts.WebApi/AutoParts.WebApi.csproj \
 # ───── Runtime stage ──────────────────────────────────────────────
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
+
+# quest pdf needs fontconfig + a real font set on the container, otherwise
+# pdf generation hangs forever when it tries to render any text. dejavu
+# covers latin + extended chars without bloating the image too much.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends fontconfig fonts-dejavu libfontconfig1 \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY --from=build /app/publish .
 
 # Render injects PORT (default 10000); ASP.NET listens on whatever URLs we tell it
