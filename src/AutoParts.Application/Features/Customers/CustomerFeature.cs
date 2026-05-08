@@ -59,3 +59,23 @@ public static class UpdateCustomerCreditLimit
             _identity.UpdateCustomerCreditLimitAsync(req.UserId, req.CreditLimit);
     }
 }
+
+// admin-side profile edit so staff can fix a customer's name + phone without
+// needing the customer to log in and edit their own profile.
+public static class UpdateCustomerProfile
+{
+    public class Command : IRequest<bool>
+    {
+        public string UserId { get; set; } = string.Empty;
+        public string FullName { get; set; } = string.Empty;
+        public string? Phone { get; set; }
+    }
+
+    public class Handler : IRequestHandler<Command, bool>
+    {
+        private readonly IIdentityService _identity;
+        public Handler(IIdentityService identity) { _identity = identity; }
+        public Task<bool> Handle(Command req, CancellationToken ct) =>
+            _identity.UpdateMyProfileAsync(req.UserId, req.FullName, req.Phone);
+    }
+}

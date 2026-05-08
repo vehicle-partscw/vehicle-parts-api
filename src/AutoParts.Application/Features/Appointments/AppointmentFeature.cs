@@ -19,6 +19,8 @@ public class AppointmentDto
     public string? CustomerPhone { get; set; }
     public Guid VehicleId { get; set; }
     public string VehicleNumber { get; set; } = string.Empty;
+    // surfaced so the new-sale modal can filter the parts dropdown to only those that fit this make
+    public string VehicleMake { get; set; } = string.Empty;
     public Guid ServiceTypeId { get; set; }
     public string ServiceTypeName { get; set; } = string.Empty;
     public string? AssignedStaffUserId { get; set; }
@@ -156,6 +158,7 @@ public static class GetAppointments
                 CustomerUserId = a.CustomerUserId,
                 VehicleId = a.VehicleId,
                 VehicleNumber = a.Vehicle != null ? a.Vehicle.VehicleNumber : string.Empty,
+                VehicleMake = a.Vehicle != null ? a.Vehicle.Make : string.Empty,
                 ServiceTypeId = a.ServiceTypeId,
                 ServiceTypeName = a.ServiceType != null ? a.ServiceType.Name : string.Empty,
                 AssignedStaffUserId = a.AssignedStaffUserId,

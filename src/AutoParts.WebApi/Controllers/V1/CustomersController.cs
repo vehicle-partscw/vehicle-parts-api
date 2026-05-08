@@ -48,4 +48,28 @@ public class CustomersController : ControllerBase
         return ok ? Ok(new { message = "Credit limit updated." })
                   : NotFound(new { message = "Customer not found." });
     }
+
+    public class ProfileRequest
+    {
+        public string FullName { get; set; } = string.Empty;
+        public string? Phone { get; set; }
+    }
+
+    // staff/admin can update a customer's profile (eg. fix a typo, add phone after walk-in)
+    [HttpPatch("{userId}/profile")]
+    public async Task<IActionResult> UpdateProfile(string userId, [FromBody] ProfileRequest body)
+    {
+        if (string.IsNullOrWhiteSpace(body.FullName))
+        {
+            return BadRequest(new { detail = "Full name is required." });
+        }
+        var ok = await _mediator.Send(new UpdateCustomerProfile.Command
+        {
+            UserId = userId,
+            FullName = body.FullName.Trim(),
+            Phone = string.IsNullOrWhiteSpace(body.Phone) ? null : body.Phone.Trim()
+        });
+        return ok ? Ok(new { message = "Customer profile updated." })
+                  : NotFound(new { message = "Customer not found." });
+    }
 }

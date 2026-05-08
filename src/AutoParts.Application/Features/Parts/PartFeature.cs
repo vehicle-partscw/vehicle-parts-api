@@ -24,6 +24,8 @@ public class PartDto
     public short ReorderLevel { get; set; }
     public bool IsLowStock => StockQty < ReorderLevel;
     public string? ImageUrl { get; set; }
+    // null/empty = universal part. comma-separated list of vehicle makes otherwise.
+    public string? CompatibleMakes { get; set; }
     public DateTime CreatedAt { get; set; }
 }
 
@@ -40,6 +42,7 @@ public static class CreatePart
         public int StockQty { get; set; }
         public short ReorderLevel { get; set; } = 10;
         public string? ImageUrl { get; set; }
+        public string? CompatibleMakes { get; set; }
     }
 
     public class Validator : AbstractValidator<Command>
@@ -85,7 +88,8 @@ public static class CreatePart
                 UnitPrice = request.UnitPrice,
                 StockQty = request.StockQty,
                 ReorderLevel = request.ReorderLevel,
-                ImageUrl = request.ImageUrl
+                ImageUrl = request.ImageUrl,
+                CompatibleMakes = string.IsNullOrWhiteSpace(request.CompatibleMakes) ? null : request.CompatibleMakes.Trim()
             };
             _db.Parts.Add(part);
             try
@@ -124,6 +128,7 @@ public static class UpdatePart
         public decimal UnitPrice { get; set; }
         public short ReorderLevel { get; set; }
         public string? ImageUrl { get; set; }
+        public string? CompatibleMakes { get; set; }
     }
 
     public class Validator : AbstractValidator<Command>
@@ -153,6 +158,7 @@ public static class UpdatePart
             part.UnitPrice = request.UnitPrice;
             part.ReorderLevel = request.ReorderLevel;
             part.ImageUrl = request.ImageUrl;
+            part.CompatibleMakes = string.IsNullOrWhiteSpace(request.CompatibleMakes) ? null : request.CompatibleMakes.Trim();
             await _db.SaveChangesAsync(ct);
             return Unit.Value;
         }
@@ -209,6 +215,7 @@ public static class GetPartById
         StockQty = p.StockQty,
         ReorderLevel = p.ReorderLevel,
         ImageUrl = p.ImageUrl,
+        CompatibleMakes = p.CompatibleMakes,
         CreatedAt = p.CreatedAt
     };
 }
@@ -220,6 +227,11 @@ public static class GetParts
         public Guid? CategoryId { get; set; }
         public Guid? VendorId { get; set; }
         public bool? LowStock { get; set; }
+        // when set, only returns parts whose CompatibleMakes contains this make
+        // (case-insensitive) OR are universal parts (CompatibleMakes is null/empty).
+        // useful when creating an invoice for an appointment - we know the customer's
+        // vehicle make and want to limit the picker to parts that fit that vehicle.
+        public string? CompatibleMake { get; set; }
     }
 
     public class Handler : IRequestHandler<Query, PaginatedList<PartDto>>
@@ -238,6 +250,17 @@ public static class GetParts
             if (req.CategoryId.HasValue) q = q.Where(p => p.CategoryId == req.CategoryId.Value);
             if (req.VendorId.HasValue) q = q.Where(p => p.VendorId == req.VendorId.Value);
             if (req.LowStock == true) q = q.Where(p => p.StockQty < p.ReorderLevel);
+
+            if (!string.IsNullOrWhiteSpace(req.CompatibleMake))
+            {
+                var make = req.CompatibleMake.Trim().ToLower();
+                // universal parts (CompatibleMakes null/empty) always show. otherwise
+                // the comma-separated list must contain the requested make.
+                q = q.Where(p =>
+                    p.CompatibleMakes == null ||
+                    p.CompatibleMakes == string.Empty ||
+                    p.CompatibleMakes.ToLower().Contains(make));
+            }
 
             var dtos = q.OrderBy(p => p.Name).Select(p => GetPartById.Project(p));
             return PaginatedList<PartDto>.CreateAsync(dtos, req.Page, req.PageSize, ct);

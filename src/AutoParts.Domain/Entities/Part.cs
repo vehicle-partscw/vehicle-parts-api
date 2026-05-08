@@ -14,6 +14,10 @@ public class Part : BaseAuditableEntity
     public short ReorderLevel { get; set; } = 10;
     public string? ImageUrl { get; set; }
 
+    // comma-separated list of vehicle makes this part fits (eg. "Toyota,Honda").
+    // null/empty means it's a universal part that fits any vehicle.
+    public string? CompatibleMakes { get; set; }
+
     public PartCategory? Category { get; set; }
     public Vendor? Vendor { get; set; }
 }
