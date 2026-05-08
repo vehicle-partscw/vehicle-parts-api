@@ -90,9 +90,22 @@ public static class DependencyInjection
             config.RegisterServicesFromAssembly(typeof(DependencyInjection).Assembly);
         });
 
-        // SMTP email sender (falls back to console logging when SmtpSettings:Host is blank)
+        // email sender. on render free we can't use smtp (ports 25/465/587 are blocked)
+        // so when ResendSettings:ApiKey is configured we send via resend's https api;
+        // otherwise we fall back to gmail smtp (works locally + on render paid tiers).
         services.Configure<SmtpSettings>(configuration.GetSection("SmtpSettings"));
-        services.AddScoped<IEmailSender, SmtpEmailSender>();
+        services.Configure<ResendSettings>(configuration.GetSection("ResendSettings"));
+
+        var resendApiKey = configuration["ResendSettings:ApiKey"];
+        if (!string.IsNullOrWhiteSpace(resendApiKey))
+        {
+            services.AddHttpClient();
+            services.AddScoped<IEmailSender, ResendEmailSender>();
+        }
+        else
+        {
+            services.AddScoped<IEmailSender, SmtpEmailSender>();
+        }
 
         // background service: scans every 24 hours for overdue On-Credit invoices and emails reminders
         services.AddHostedService<Services.OverdueInvoiceReminderService>();
